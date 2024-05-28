@@ -10,10 +10,10 @@ pub fn start_ui() {
     nodelay(stdscr(), true);
 }
 
-pub fn update(pomodoro: &Timer) {
+pub fn update(timer: &Timer) {
     let window_size = get_window_size();
-    print_image(pomodoro, window_size);
-    print_footer(pomodoro, window_size);
+    print_image(timer, window_size);
+    print_footer(timer, window_size);
 
     refresh();
 }
@@ -34,13 +34,13 @@ pub fn update_window_size(window_size: &mut (i32, i32)) {
     }
 }
 
-fn print_image(pomodoro: &Timer, window_size: (i32, i32)) {
+fn print_image(timer: &Timer, window_size: (i32, i32)) {
     let image_position: (i32, i32) = (
         window_size.0 - 13,
         ((window_size.1 as f32) / 2.0 - 6.0) as i32,
     );
 
-    match pomodoro.time_now % 4 {
+    match timer.time_now % 4 {
         0 => {
             let _ = mvaddstr(image_position.0 + 0, image_position.1, "             ");
             let _ = mvaddstr(image_position.0 + 1, image_position.1, "    #####    ");
@@ -99,28 +99,28 @@ fn print_image(pomodoro: &Timer, window_size: (i32, i32)) {
     }
 }
 
-fn print_footer(pomodoro: &Timer, window_size: (i32, i32)) {
+fn print_footer(timer: &Timer, window_size: (i32, i32)) {
     let time_text_position = (window_size.1 - 15, window_size.0 - 2);
-    print_time_text(pomodoro, time_text_position);
-    print_progressbar(pomodoro, window_size);
+    print_time_text(timer, time_text_position);
+    print_progressbar(timer, window_size);
 }
 
-fn print_time_text(pomodoro: &Timer, time_text_position: (i32, i32)) {
+fn print_time_text(timer: &Timer, time_text_position: (i32, i32)) {
     let _ = mvaddstr(
         time_text_position.1,
         time_text_position.0,
         format!(
             "{} / {}",
-            format_seconds_to_time(pomodoro.time_now.try_into().unwrap()),
-            format_seconds_to_time(pomodoro.time_limit.try_into().unwrap())
+            format_seconds_to_time(timer.time_now.try_into().unwrap()),
+            format_seconds_to_time(timer.time_limit.try_into().unwrap())
         )
         .as_str(),
     );
 }
 
-fn print_progressbar(pomodoro: &Timer, window_size: (i32, i32)) {
+fn print_progressbar(timer: &Timer, window_size: (i32, i32)) {
     let progressbar_position: Vec<i32> = vec![
-        get_scaled_progressbar_size(pomodoro, window_size.1),
+        get_scaled_progressbar_size(timer, window_size.1),
         window_size.0 - 1,
     ];
 
@@ -132,10 +132,10 @@ fn print_progressbar(pomodoro: &Timer, window_size: (i32, i32)) {
     let _ = mvaddstr(progressbar_position[1], progressbar_position[0], ">");
 }
 
-fn get_scaled_progressbar_size(pomodoro: &Timer, window_x: i32) -> i32 {
+fn get_scaled_progressbar_size(timer: &Timer, window_x: i32) -> i32 {
     let limit_x = window_x - 2;
     let scaled_progressbar_size: f32 =
-        (pomodoro.time_now as f32) / (pomodoro.time_limit as f32) * (limit_x as f32);
+        (timer.time_now as f32) / (timer.time_limit as f32) * (limit_x as f32);
     return scaled_progressbar_size as i32;
 }
 

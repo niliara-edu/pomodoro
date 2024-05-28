@@ -8,6 +8,7 @@ pub struct Timer {
     pub time_now: u64,
 
     pub session: Session,
+    pub state: State,
 }
 
 impl Timer {
@@ -23,28 +24,34 @@ impl Timer {
         return false;
     }
 
-    pub fn is_finished(&self) -> bool {
+    pub fn update_events(&mut self) {
         if self.time_now >= self.time_limit {
-            return true;
+            self.state = State::Finished;
         };
-        return false;
     }
+}
+
+pub enum State {
+    Running,
+    Finished,
+    Paused,
 }
 
 pub fn create_default_timer() -> Timer {
     let session_time_in_minutes: u64 = 2;
     let session_time_in_seconds: u64 = session_time_in_minutes * 60;
 
-    let pomodoro = Timer {
+    let timer = Timer {
         start_time: time::Instant::now(),
 
         time_limit: session_time_in_seconds,
         time_now: 0,
         time_last_check: 0,
         session: create_default_session(),
+        state: State::Running,
     };
 
-    return pomodoro;
+    return timer;
 }
 
 pub struct Session {
