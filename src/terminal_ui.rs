@@ -13,7 +13,7 @@ pub fn start_ui() {
 pub fn update(timer: &Timer) {
     let window_size = get_window_size();
     print_image(timer, window_size);
-    print_footer(timer, window_size);
+    print_data(timer, window_size);
 
     refresh();
 }
@@ -99,7 +99,7 @@ fn print_image(timer: &Timer, window_size: (i32, i32)) {
     }
 }
 
-fn print_footer(timer: &Timer, window_size: (i32, i32)) {
+fn print_data(timer: &Timer, window_size: (i32, i32)) {
     let time_text_position = (window_size.1 - 15, window_size.0 - 2);
     print_time_text(timer, time_text_position);
     print_progressbar(timer, window_size);

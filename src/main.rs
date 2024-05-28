@@ -2,6 +2,8 @@ pub mod actions;
 pub mod terminal_ui;
 pub mod timer;
 
+use std::time;
+
 use actions::Action;
 use timer::State;
 use timer::Timer;
@@ -16,7 +18,7 @@ fn main() {
 
     loop {
         terminal_ui::update_window_size(&mut window_size);
-        timer.update_time();
+        timer.update_timer();
         process_actions(&mut timer);
 
         terminal_ui::update(&timer);
@@ -35,6 +37,7 @@ fn process_actions(timer: &mut Timer) {
 
     match action {
         Action::Quit => timer.state = State::Finished,
+        Action::Pause => timer.pause(),
         Action::Err => return,
     }
 }
