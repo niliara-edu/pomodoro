@@ -1,6 +1,7 @@
 extern crate ncurses;
 use ncurses::*;
 
+use super::timer::State;
 use super::timer::Timer;
 
 pub fn start_ui() {
@@ -22,6 +23,7 @@ pub fn get_window_size() -> (i32, i32) {
     let mut height: i32 = 0;
     let mut width: i32 = 0;
     getmaxyx(ncurses::stdscr(), &mut height, &mut width);
+
     return (height, width);
 }
 
@@ -51,7 +53,6 @@ fn print_image(timer: &Timer, window_size: (i32, i32)) {
             let _ = mvaddstr(image_position.0 + 6, image_position.1, "   #     #   ");
             let _ = mvaddstr(image_position.0 + 7, image_position.1, "    #####    ");
             let _ = mvaddstr(image_position.0 + 8, image_position.1, "             ");
-            let _ = mvaddstr(image_position.0 + 9, image_position.1, "             ");
         }
 
         1 => {
@@ -64,7 +65,6 @@ fn print_image(timer: &Timer, window_size: (i32, i32)) {
             let _ = mvaddstr(image_position.0 + 6, image_position.1, "   #     #   ");
             let _ = mvaddstr(image_position.0 + 7, image_position.1, "    #####    ");
             let _ = mvaddstr(image_position.0 + 8, image_position.1, "             ");
-            let _ = mvaddstr(image_position.0 + 9, image_position.1, "             ");
         }
 
         2 => {
@@ -77,7 +77,6 @@ fn print_image(timer: &Timer, window_size: (i32, i32)) {
             let _ = mvaddstr(image_position.0 + 6, image_position.1, "   #  |  #   ");
             let _ = mvaddstr(image_position.0 + 7, image_position.1, "    #####    ");
             let _ = mvaddstr(image_position.0 + 8, image_position.1, "             ");
-            let _ = mvaddstr(image_position.0 + 9, image_position.1, "             ");
         }
 
         3 => {
@@ -90,7 +89,6 @@ fn print_image(timer: &Timer, window_size: (i32, i32)) {
             let _ = mvaddstr(image_position.0 + 6, image_position.1, "   #     #   ");
             let _ = mvaddstr(image_position.0 + 7, image_position.1, "    #####    ");
             let _ = mvaddstr(image_position.0 + 8, image_position.1, "             ");
-            let _ = mvaddstr(image_position.0 + 9, image_position.1, "             ");
         }
 
         _default => {
@@ -100,9 +98,11 @@ fn print_image(timer: &Timer, window_size: (i32, i32)) {
 }
 
 fn print_data(timer: &Timer, window_size: (i32, i32)) {
-    let time_text_position = (window_size.1 - 15, window_size.0 - 2);
+    let time_text_position = (window_size.1 - 16, window_size.0 - 2);
+    let statusbar_position = (window_size.1 - 8, 0);
     print_time_text(timer, time_text_position);
     print_progressbar(timer, window_size);
+    print_statusbar(timer, statusbar_position);
 }
 
 fn print_time_text(timer: &Timer, time_text_position: (i32, i32)) {
@@ -129,6 +129,7 @@ fn print_progressbar(timer: &Timer, window_size: (i32, i32)) {
         0,
         &"=".repeat(progressbar_position[0].try_into().unwrap()),
     );
+
     let _ = mvaddstr(progressbar_position[1], progressbar_position[0], ">");
 }
 
@@ -144,6 +145,22 @@ fn format_seconds_to_time(seconds: i32) -> String {
     let time_in_seconds: i32 = seconds % 60;
     let formatted_time: String = format!("{:02}:{:02}", time_in_minutes, time_in_seconds);
     return formatted_time;
+}
+
+fn print_statusbar(timer: &Timer, statusbar_position: (i32, i32)) {
+    let _ = mvaddstr(
+        statusbar_position.1,
+        statusbar_position.0,
+        format!("[{}]  ", get_statuskeys(timer)).as_str(),
+    );
+}
+
+fn get_statuskeys(timer: &Timer) -> char {
+    match timer.state {
+        State::Finished => return 'a',
+        State::Running => return 'r',
+        State::Paused => return 'p',
+    }
 }
 
 pub fn end_ui() {

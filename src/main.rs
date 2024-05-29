@@ -2,8 +2,6 @@ pub mod actions;
 pub mod terminal_ui;
 pub mod timer;
 
-use std::time;
-
 use actions::Action;
 use timer::State;
 use timer::Timer;

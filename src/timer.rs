@@ -74,12 +74,12 @@ pub fn create_default_timer() -> Timer {
 }
 
 pub struct Session {
-    pub short_break_time: u64,
-    pub long_break_time: u64,
-    pub time_limit: u64,
+    pub short_break_time: u8,
+    pub long_break_time: u8,
+    pub time_limit: u8,
 
-    pub stage_limit: u32,
-    pub stage_now: u32,
+    pub stage_limit: u8,
+    pub stage_now: u8,
 
     pub is_break_time: bool,
 }
