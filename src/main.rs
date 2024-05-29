@@ -12,14 +12,12 @@ fn main() {
     let mut timer: Timer = timer::create_default_timer();
     let mut window_size = terminal_ui::get_window_size();
 
-    terminal_ui::update(&timer);
-
     loop {
         terminal_ui::update_window_size(&mut window_size);
-        timer.update_timer();
         process_actions(&mut timer);
 
-        terminal_ui::update(&timer);
+        timer.update_timer();
+        terminal_ui::update_running_ui(&timer);
         timer.update_events();
 
         if matches!(timer.state, State::Finished) {
@@ -35,7 +33,8 @@ fn process_actions(timer: &mut Timer) {
 
     match action {
         Action::Quit => timer.state = State::Finished,
-        Action::Pause => timer.pause(),
+        Action::Pause => timer.pause_trigger(),
+        Action::Stop => timer.stop(),
         Action::Err => return,
     }
 }

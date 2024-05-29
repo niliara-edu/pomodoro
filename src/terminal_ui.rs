@@ -11,7 +11,7 @@ pub fn start_ui() {
     nodelay(stdscr(), true);
 }
 
-pub fn update(timer: &Timer) {
+pub fn update_running_ui(timer: &Timer) {
     let window_size = get_window_size();
     print_image(timer, window_size);
     print_data(timer, window_size);
@@ -38,7 +38,7 @@ pub fn update_window_size(window_size: &mut (i32, i32)) {
 
 fn print_image(timer: &Timer, window_size: (i32, i32)) {
     let image_position: (i32, i32) = (
-        window_size.0 - 13,
+        window_size.0 - 16,
         ((window_size.1 as f32) / 2.0 - 6.0) as i32,
     );
 
@@ -151,7 +151,7 @@ fn print_statusbar(timer: &Timer, statusbar_position: (i32, i32)) {
     let _ = mvaddstr(
         statusbar_position.1,
         statusbar_position.0,
-        format!("[{}]  ", get_statuskeys(timer)).as_str(),
+        format!("[{}]", get_statuskeys(timer)).as_str(),
     );
 }
 
@@ -160,6 +160,7 @@ fn get_statuskeys(timer: &Timer) -> char {
         State::Finished => return 'a',
         State::Running => return 'r',
         State::Paused => return 'p',
+        State::Stopped => return 's',
     }
 }
 

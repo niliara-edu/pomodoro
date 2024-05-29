@@ -20,7 +20,7 @@ impl Timer {
     }
 
     fn update_time(&mut self) {
-        if matches!(self.state, State::Paused) {
+        if !(matches!(self.state, State::Running)) {
             return;
         }
 
@@ -36,14 +36,27 @@ impl Timer {
         }
     }
 
-    pub fn pause(&mut self) {
-        if matches!(self.state, State::Paused) {
-            self.state = State::Running;
-            self.time_paused += self.start_pause_time.elapsed();
-        } else {
-            self.state = State::Paused;
-            self.start_pause_time = time::Instant::now();
+    pub fn pause_trigger(&mut self) {
+        match self.state {
+            State::Running => self.pause(),
+            State::Paused => self.unpause(),
+            _ => return,
         }
+    }
+
+    fn pause(&mut self) {
+        self.state = State::Paused;
+        self.start_pause_time = time::Instant::now();
+    }
+
+    fn unpause(&mut self) {
+        self.state = State::Running;
+        self.time_paused += self.start_pause_time.elapsed();
+    }
+
+    pub fn stop(&mut self) {
+        self.state = State::Stopped;
+        self.time_now = 0;
     }
 }
 
@@ -51,6 +64,7 @@ pub enum State {
     Running,
     Finished,
     Paused,
+    Stopped,
 }
 
 pub fn create_default_timer() -> Timer {
@@ -67,7 +81,7 @@ pub fn create_default_timer() -> Timer {
         time_now: 0,
 
         session: create_default_session(),
-        state: State::Running,
+        state: State::Stopped,
     };
 
     return timer;
