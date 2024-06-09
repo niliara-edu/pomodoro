@@ -11,7 +11,7 @@ pub fn start_ui() {
     nodelay(stdscr(), true);
 }
 
-pub fn update_running_ui(timer: &Timer) {
+pub fn update(timer: &Timer) {
     let window_size = get_window_size();
     print_image(timer, window_size);
     print_data(timer, window_size);
@@ -112,7 +112,7 @@ fn print_time_text(timer: &Timer, time_text_position: (i32, i32)) {
         format!(
             "{} / {}",
             format_seconds_to_time(timer.time_now.try_into().unwrap()),
-            format_seconds_to_time(timer.time_limit.try_into().unwrap())
+            format_seconds_to_time(timer.time_limit_seconds.try_into().unwrap())
         )
         .as_str(),
     );
@@ -136,7 +136,7 @@ fn print_progressbar(timer: &Timer, window_size: (i32, i32)) {
 fn get_scaled_progressbar_size(timer: &Timer, window_x: i32) -> i32 {
     let limit_x = window_x - 2;
     let scaled_progressbar_size: f32 =
-        (timer.time_now as f32) / (timer.time_limit as f32) * (limit_x as f32);
+        (timer.time_now as f32) / (timer.time_limit_seconds as f32) * (limit_x as f32);
     return scaled_progressbar_size as i32;
 }
 
@@ -162,6 +162,10 @@ fn get_statuskeys(timer: &Timer) -> char {
         State::Paused => return 'p',
         State::Stopped => return 's',
     }
+}
+
+pub fn print_menu() {
+    todo!();
 }
 
 pub fn end_ui() {

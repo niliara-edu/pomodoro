@@ -1,3 +1,4 @@
+use super::menu::MenuSection;
 use std::time;
 
 pub struct Timer {
@@ -6,15 +7,17 @@ pub struct Timer {
     pub start_pause_time: time::Instant,
     pub time_paused: time::Duration,
 
-    pub time_limit: u64,
-    pub time_now: u64,
+    pub time_limit_seconds: u16,
+    pub time_now: u16,
 
     pub session: Session,
     pub state: State,
+
+    pub menu_section: MenuSection,
 }
 
 impl Timer {
-    pub fn update_timer(&mut self) {
+    pub fn update(&mut self) {
         self.time_elapsed = self.start_time.elapsed();
         self.update_time();
     }
@@ -24,16 +27,22 @@ impl Timer {
             return;
         }
 
-        let time_as_seconds: u64 = (self.time_elapsed - self.time_paused).as_secs();
+        let time_as_seconds: u16 = (self.time_elapsed - self.time_paused).as_secs() as u16;
         if self.time_now != time_as_seconds {
             self.time_now = time_as_seconds;
         }
+
+        self.update_events();
     }
 
-    pub fn update_events(&mut self) {
-        if self.time_now >= self.time_limit {
-            self.state = State::Finished;
+    fn update_events(&mut self) {
+        if self.time_now >= self.time_limit_seconds {
+            self.next_stage();
         }
+    }
+
+    fn next_stage(&mut self) {
+        self.state = State::Finished;
     }
 
     pub fn pause_trigger(&mut self) {
@@ -58,6 +67,19 @@ impl Timer {
         self.state = State::Stopped;
         self.time_now = 0;
     }
+
+    pub fn start_trigger(&mut self) {
+        if matches!(self.state, State::Stopped) {
+            self.restart()
+        }
+    }
+
+    fn restart(&mut self) {
+        self.state = State::Running;
+        self.start_time = time::Instant::now();
+        self.time_now = 0;
+        self.time_paused = time::Duration::ZERO;
+    }
 }
 
 pub enum State {
@@ -68,8 +90,8 @@ pub enum State {
 }
 
 pub fn create_default_timer() -> Timer {
-    let session_time_in_minutes: u64 = 2;
-    let session_time_in_seconds: u64 = session_time_in_minutes * 60;
+    let timer_session: Session = create_default_session();
+    let session_time_in_seconds: u16 = (timer_session.time_limit_minutes as u16) * 10; //change to 60 later
 
     let timer = Timer {
         start_time: time::Instant::now(),
@@ -77,11 +99,13 @@ pub fn create_default_timer() -> Timer {
         start_pause_time: time::Instant::now(),
         time_paused: time::Duration::ZERO,
 
-        time_limit: session_time_in_seconds,
+        time_limit_seconds: session_time_in_seconds,
         time_now: 0,
 
-        session: create_default_session(),
-        state: State::Stopped,
+        session: timer_session,
+        state: State::Running, //change to Stopped later
+
+        menu_section: MenuSection::TimeLimit,
     };
 
     return timer;
@@ -90,7 +114,7 @@ pub fn create_default_timer() -> Timer {
 pub struct Session {
     pub short_break_time: u8,
     pub long_break_time: u8,
-    pub time_limit: u8,
+    pub time_limit_minutes: u8,
 
     pub stage_limit: u8,
     pub stage_now: u8,
@@ -102,7 +126,7 @@ fn create_default_session() -> Session {
     let session = Session {
         short_break_time: 5,
         long_break_time: 30,
-        time_limit: 25,
+        time_limit_minutes: 1,
         stage_limit: 4,
         stage_now: 0,
         is_break_time: false,
