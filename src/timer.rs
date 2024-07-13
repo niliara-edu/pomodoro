@@ -1,4 +1,3 @@
-use super::menu::MenuSection;
 use std::time;
 
 pub struct Timer {
@@ -12,11 +11,29 @@ pub struct Timer {
 
     pub session: Session,
     pub state: State,
-
-    pub menu_section: MenuSection,
 }
 
 impl Timer {
+    pub fn default() -> Timer {
+        let timer_session: Session = create_default_session();
+        let session_time_in_seconds: u16 = (timer_session.time_limit_minutes as u16) * 60; //change to 60 later
+
+        let timer = Timer {
+            start_time: time::Instant::now(),
+            time_elapsed: time::Duration::ZERO,
+            start_pause_time: time::Instant::now(),
+            time_paused: time::Duration::ZERO,
+
+            time_limit_seconds: session_time_in_seconds,
+            time_now: 0,
+
+            session: timer_session,
+            state: State::Running, //change to Stopped later
+        };
+
+        return timer;
+    }
+
     pub fn update(&mut self) {
         self.time_elapsed = self.start_time.elapsed();
         self.update_time();
@@ -87,28 +104,6 @@ pub enum State {
     Finished,
     Paused,
     Stopped,
-}
-
-pub fn create_default_timer() -> Timer {
-    let timer_session: Session = create_default_session();
-    let session_time_in_seconds: u16 = (timer_session.time_limit_minutes as u16) * 10; //change to 60 later
-
-    let timer = Timer {
-        start_time: time::Instant::now(),
-        time_elapsed: time::Duration::ZERO,
-        start_pause_time: time::Instant::now(),
-        time_paused: time::Duration::ZERO,
-
-        time_limit_seconds: session_time_in_seconds,
-        time_now: 0,
-
-        session: timer_session,
-        state: State::Running, //change to Stopped later
-
-        menu_section: MenuSection::TimeLimit,
-    };
-
-    return timer;
 }
 
 pub struct Session {
