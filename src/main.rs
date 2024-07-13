@@ -1,12 +1,19 @@
 pub mod timer;
 
-// the ncurses code was pretty bad so i replaced it with iced (first time!)
-// I am so sorry to whoever is reading this
+// highly copied from some of the iced examples
+// (it's my first time, please be patient)
 
+use iced::alignment;
 use iced::keyboard;
+use iced::mouse;
 use iced::time;
-use iced::widget::{column, container, text};
-use iced::{executor, Application, Command, Element, Length, Settings, Subscription, Theme};
+use iced::widget::canvas::{stroke, Cache, Geometry, LineCap, Path, Stroke};
+use iced::widget::{canvas, column, container, text};
+use iced::{
+    executor, Application, Command, Degrees, Element, Length, Point, Renderer, Settings,
+    Subscription, Theme, Vector,
+};
+use std::f32::consts::TAU;
 
 /*
 Project structure according to UAB:
@@ -20,7 +27,8 @@ pub fn main() -> iced::Result {
 }
 
 struct Pomodoro {
-    clock: timer::Timer,
+    timer: timer::Timer,
+    clock: Cache,
 }
 
 #[derive(Debug, Clone)]
@@ -40,7 +48,8 @@ impl Application for Pomodoro {
     fn new(_flags: ()) -> (Pomodoro, Command<Self::Message>) {
         (
             Pomodoro {
-                clock: crate::timer::Timer::default(),
+                timer: crate::timer::Timer::default(),
+                clock: Cache::default(),
             },
             Command::none(),
         )
@@ -52,10 +61,14 @@ impl Application for Pomodoro {
 
     fn update(&mut self, message: Message) -> iced::Command<Message> {
         match message {
-            Message::Tick => self.clock.update(),
-            Message::Pause => self.clock.pause_trigger(),
-            Message::Stop => self.clock.stop(),
-            Message::Start => self.clock.start_trigger(),
+            Message::Tick => {
+                self.timer.update();
+                self.clock.clear();
+            }
+
+            Message::Pause => self.timer.pause_trigger(),
+            Message::Stop => self.timer.stop(),
+            Message::Start => self.timer.start_trigger(),
         }
 
         Command::none()
@@ -64,20 +77,27 @@ impl Application for Pomodoro {
     fn view(&self) -> Element<Message> {
         let time_text = text(format!(
             "{:02}:{:02} / {:02}:{:02}",
-            self.clock.time_now / 60,
-            self.clock.time_now % 60,
-            self.clock.time_limit_seconds / 60,
-            self.clock.time_limit_seconds % 60,
-        ));
+            self.timer.time_now / 60,
+            self.timer.time_now % 60,
+            self.timer.time_limit_seconds / 60,
+            self.timer.time_limit_seconds % 60,
+        ))
+        .horizontal_alignment(alignment::Horizontal::Center);
 
-        let state = text(match self.clock.state {
+        let state = text(match self.timer.state {
             timer::State::Running => "running",
             timer::State::Paused => "paused",
             timer::State::Stopped => "stopped",
             timer::State::Finished => "finished",
         });
 
-        let content = column![time_text, state];
+        let numbers_n_shit = container(column![time_text, state])
+            .width(Length::Fill)
+            .height(50)
+            .center_x();
+
+        let canvas = canvas(self as &Self).width(Length::Fill).height(200);
+        let content = column![canvas, numbers_n_shit].spacing(20).padding(20);
 
         container(content)
             .width(Length::Fill)
@@ -106,5 +126,68 @@ impl Application for Pomodoro {
 
     fn theme(&self) -> Self::Theme {
         Theme::Oxocarbon
+    }
+}
+
+impl<Message> canvas::Program<Message> for Pomodoro {
+    type State = ();
+
+    fn draw(
+        &self,
+        state: &Self::State,
+        renderer: &Renderer,
+        theme: &Theme,
+        bounds: iced::Rectangle,
+        _cursor: mouse::Cursor,
+    ) -> Vec<Geometry> {
+        let clock = self.clock.draw(renderer, bounds.size(), |frame| {
+            let palette = theme.extended_palette();
+
+            let center = frame.center();
+            let radius = frame.width().min(frame.height()) / 2.0;
+
+            let background = Path::circle(center, radius);
+            frame.fill(&background, palette.secondary.strong.color);
+
+            let short_hand = Path::line(Point::ORIGIN, Point::new(0.0, -0.5 * radius));
+
+            let long_hand = Path::line(Point::ORIGIN, Point::new(0.0, -0.8 * radius));
+
+            let width = radius / 100.0;
+
+            let thin_stroke = || -> Stroke {
+                Stroke {
+                    width,
+                    style: stroke::Style::Solid(palette.primary.strong.text),
+                    line_cap: LineCap::Round,
+                    ..Stroke::default()
+                }
+            };
+
+            let wide_stroke = || -> Stroke {
+                Stroke {
+                    width: width * 3.0,
+                    style: stroke::Style::Solid(palette.primary.strong.text),
+                    line_cap: LineCap::Round,
+                    ..Stroke::default()
+                }
+            };
+
+            frame.translate(Vector::new(center.x, center.y));
+
+            frame.with_save(|frame| {
+                frame.rotate(
+                    self.timer.time_now as f32 / self.timer.time_limit_seconds as f32 * TAU,
+                );
+                frame.stroke(&short_hand, wide_stroke());
+            });
+
+            frame.with_save(|frame| {
+                frame.rotate(self.timer.time_now as f32 / 60. * TAU);
+                frame.stroke(&long_hand, thin_stroke());
+            });
+        });
+
+        vec![clock]
     }
 }

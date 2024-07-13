@@ -121,7 +121,7 @@ fn create_default_session() -> Session {
     let session = Session {
         short_break_time: 5,
         long_break_time: 30,
-        time_limit_minutes: 1,
+        time_limit_minutes: 25,
         stage_limit: 4,
         stage_now: 0,
         is_break_time: false,
