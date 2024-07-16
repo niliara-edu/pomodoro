@@ -1,7 +1,9 @@
 pub mod action_handler;
+pub mod colored_keys;
 pub mod menu;
 pub mod timer;
 
+use colored_keys::ColoredKeys;
 use menu::MenuState;
 
 use iced::alignment;
@@ -11,8 +13,8 @@ use iced::time;
 use iced::widget::canvas::{stroke, Cache, Geometry, LineCap, Path, Stroke};
 use iced::widget::{canvas, column, container, text};
 use iced::{
-    executor, Application, Command, Element, Length, Point, Renderer, Settings, Size, Subscription,
-    Theme, Vector,
+    executor, Application, Color, Command, Element, Length, Point, Renderer, Settings, Size,
+    Subscription, Theme, Vector,
 };
 use std::f32::consts::TAU;
 
@@ -31,19 +33,21 @@ struct Pomodoro {
     timer: timer::Timer,
     clock: Cache,
     menu_state: MenuState,
+    colored_keys: ColoredKeys,
 }
 
 #[derive(Debug, Clone)]
-enum Message {
+pub enum Message {
     Tick,
     Pause,
     Stop,
     Start,
-    Arrow(Arrow),
+    ArrowPress(Arrow),
+    ArrowRelease(Arrow),
 }
 
 #[derive(Debug, Clone)]
-enum Arrow {
+pub enum Arrow {
     Up,
     Down,
     Left,
@@ -62,6 +66,7 @@ impl Application for Pomodoro {
                 timer: crate::timer::Timer::default(),
                 clock: Cache::default(),
                 menu_state: MenuState::default(),
+                colored_keys: ColoredKeys::default(),
             },
             Command::none(),
         )
@@ -77,7 +82,8 @@ impl Application for Pomodoro {
             Message::Pause => self.timer.pause_trigger(),
             Message::Stop => self.timer.stop(),
             Message::Start => self.timer.start_trigger(),
-            Message::Arrow(_) => println!("hi"),
+            Message::ArrowPress(arrow) => self.colored_keys.press(arrow),
+            Message::ArrowRelease(arrow) => self.colored_keys.release(arrow),
         }
 
         self.clock.clear();
@@ -121,9 +127,10 @@ impl Application for Pomodoro {
     fn subscription(&self) -> iced::Subscription<Self::Message> {
         match &self.timer.state {
             timer::State::Stopped => {
-                return Subscription::batch(vec![keyboard::on_key_press(
-                    action_handler::handle_menu_keys,
-                )]);
+                return Subscription::batch(vec![
+                    keyboard::on_key_press(action_handler::handle_menu_keys),
+                    keyboard::on_key_release(action_handler::handle_arrow_key_release),
+                ]);
             }
             _ => {
                 let tick = time::every(time::Duration::from_millis(100)).map(|_| Message::Tick);
@@ -243,14 +250,25 @@ impl<Message> canvas::Program<Message> for Pomodoro {
                 ..Default::default()
             };
 
-            // arrows turn red on press
-            // events for press and release
-            // values to save the arrows' state
+            let default_text_color = palette.background.base.color;
+
+            fn arrow_color(colored_keys: &ColoredKeys, arrow: Arrow, def: Color) -> Color {
+                match colored_keys.get_state(arrow) {
+                    true => iced::Color {
+                        r: 255.,
+                        g: 0.,
+                        b: 0.,
+                        a: 1.,
+                    },
+                    false => def,
+                }
+            }
 
             let left_arrow = canvas::Text {
                 content: String::from("<"),
                 position: Point::new(-100., -30.),
                 horizontal_alignment: alignment::Horizontal::Center,
+                color: arrow_color(&self.colored_keys, Arrow::Left, default_text_color),
                 ..Default::default()
             };
 
@@ -258,6 +276,7 @@ impl<Message> canvas::Program<Message> for Pomodoro {
                 content: String::from(">"),
                 position: Point::new(100., -30.),
                 horizontal_alignment: alignment::Horizontal::Center,
+                color: arrow_color(&self.colored_keys, Arrow::Right, default_text_color),
                 ..Default::default()
             };
 
@@ -265,6 +284,7 @@ impl<Message> canvas::Program<Message> for Pomodoro {
                 content: String::from("^"),
                 position: Point::new(0., 0.),
                 horizontal_alignment: alignment::Horizontal::Center,
+                color: arrow_color(&self.colored_keys, Arrow::Up, default_text_color),
                 ..Default::default()
             };
 
@@ -272,6 +292,7 @@ impl<Message> canvas::Program<Message> for Pomodoro {
                 content: String::from("^"),
                 position: Point::new(0., 0.),
                 horizontal_alignment: alignment::Horizontal::Center,
+                color: arrow_color(&self.colored_keys, Arrow::Down, default_text_color),
                 ..Default::default()
             };
 
@@ -282,13 +303,13 @@ impl<Message> canvas::Program<Message> for Pomodoro {
 
             frame.with_save(|frame| {
                 frame.translate(Vector { x: 0., y: -10. });
-                frame.fill_text(lower_arrow);
+                frame.fill_text(upper_arrow);
             });
 
             frame.with_save(|frame| {
                 frame.rotate(0.5 * TAU);
                 frame.translate(Vector { x: 0., y: -40. });
-                frame.fill_text(upper_arrow);
+                frame.fill_text(lower_arrow);
             });
         });
 
