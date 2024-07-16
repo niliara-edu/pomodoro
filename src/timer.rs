@@ -28,7 +28,7 @@ impl Timer {
             time_now: 0,
 
             session: timer_session,
-            state: State::Running, //change to Stopped later
+            state: State::Stopped,
         };
 
         return timer;
@@ -99,6 +99,7 @@ impl Timer {
     }
 }
 
+#[derive(PartialEq, Debug)]
 pub enum State {
     Running,
     Finished,

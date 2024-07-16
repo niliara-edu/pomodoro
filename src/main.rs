@@ -1,7 +1,8 @@
+pub mod action_handler;
+pub mod menu;
 pub mod timer;
 
-// highly copied from some of the iced examples
-// (it's my first time, please be patient)
+use menu::MenuState;
 
 use iced::alignment;
 use iced::keyboard;
@@ -10,8 +11,8 @@ use iced::time;
 use iced::widget::canvas::{stroke, Cache, Geometry, LineCap, Path, Stroke};
 use iced::widget::{canvas, column, container, text};
 use iced::{
-    executor, Application, Command, Degrees, Element, Length, Point, Renderer, Settings,
-    Subscription, Theme, Vector,
+    executor, Application, Command, Element, Length, Point, Renderer, Settings, Size, Subscription,
+    Theme, Vector,
 };
 use std::f32::consts::TAU;
 
@@ -29,6 +30,7 @@ pub fn main() -> iced::Result {
 struct Pomodoro {
     timer: timer::Timer,
     clock: Cache,
+    menu_state: MenuState,
 }
 
 #[derive(Debug, Clone)]
@@ -37,6 +39,15 @@ enum Message {
     Pause,
     Stop,
     Start,
+    Arrow(Arrow),
+}
+
+#[derive(Debug, Clone)]
+enum Arrow {
+    Up,
+    Down,
+    Left,
+    Right,
 }
 
 impl Application for Pomodoro {
@@ -50,6 +61,7 @@ impl Application for Pomodoro {
             Pomodoro {
                 timer: crate::timer::Timer::default(),
                 clock: Cache::default(),
+                menu_state: MenuState::default(),
             },
             Command::none(),
         )
@@ -61,16 +73,14 @@ impl Application for Pomodoro {
 
     fn update(&mut self, message: Message) -> iced::Command<Message> {
         match message {
-            Message::Tick => {
-                self.timer.update();
-                self.clock.clear();
-            }
-
+            Message::Tick => self.timer.update(),
             Message::Pause => self.timer.pause_trigger(),
             Message::Stop => self.timer.stop(),
             Message::Start => self.timer.start_trigger(),
+            Message::Arrow(_) => println!("hi"),
         }
 
+        self.clock.clear();
         Command::none()
     }
 
@@ -81,8 +91,7 @@ impl Application for Pomodoro {
             self.timer.time_now % 60,
             self.timer.time_limit_seconds / 60,
             self.timer.time_limit_seconds % 60,
-        ))
-        .horizontal_alignment(alignment::Horizontal::Center);
+        ));
 
         let state = text(match self.timer.state {
             timer::State::Running => "running",
@@ -91,12 +100,14 @@ impl Application for Pomodoro {
             timer::State::Finished => "finished",
         });
 
-        let numbers_n_shit = container(column![time_text, state])
-            .width(Length::Fill)
-            .height(50)
-            .center_x();
+        let numbers_n_shit =
+            container(column![time_text, state].align_items(iced::Alignment::Center))
+                .width(Length::Fill)
+                .height(50)
+                .center_x();
 
         let canvas = canvas(self as &Self).width(Length::Fill).height(200);
+
         let content = column![canvas, numbers_n_shit].spacing(20).padding(20);
 
         container(content)
@@ -108,20 +119,20 @@ impl Application for Pomodoro {
     }
 
     fn subscription(&self) -> iced::Subscription<Self::Message> {
-        let tick = time::every(time::Duration::from_millis(10)).map(|_| Message::Tick);
-
-        fn handle_hotkey(key: keyboard::Key, _modifiers: keyboard::Modifiers) -> Option<Message> {
-            use keyboard::key;
-
-            match key.as_ref() {
-                keyboard::Key::Character("p") => Some(Message::Pause),
-                keyboard::Key::Character("s") => Some(Message::Stop),
-                keyboard::Key::Named(key::Named::Enter) => Some(Message::Start),
-                _ => None,
+        match &self.timer.state {
+            timer::State::Stopped => {
+                return Subscription::batch(vec![keyboard::on_key_press(
+                    action_handler::handle_menu_keys,
+                )]);
+            }
+            _ => {
+                let tick = time::every(time::Duration::from_millis(100)).map(|_| Message::Tick);
+                return Subscription::batch(vec![
+                    tick,
+                    keyboard::on_key_press(action_handler::handle_running_keys),
+                ]);
             }
         }
-
-        Subscription::batch(vec![tick, keyboard::on_key_press(handle_hotkey)])
     }
 
     fn theme(&self) -> Self::Theme {
@@ -134,7 +145,7 @@ impl<Message> canvas::Program<Message> for Pomodoro {
 
     fn draw(
         &self,
-        state: &Self::State,
+        _state: &Self::State,
         renderer: &Renderer,
         theme: &Theme,
         bounds: iced::Rectangle,
@@ -146,8 +157,10 @@ impl<Message> canvas::Program<Message> for Pomodoro {
             let center = frame.center();
             let radius = frame.width().min(frame.height()) / 2.0;
 
-            let background = Path::circle(center, radius);
-            frame.fill(&background, palette.secondary.strong.color);
+            let border_clock = Path::circle(center, radius);
+            //let inner_clock = Path::circle(center, radius * 0.9);
+            frame.fill(&border_clock, palette.background.strong.color);
+            //frame.fill(&inner_clock, palette.secondary.weak.color);
 
             let short_hand = Path::line(Point::ORIGIN, Point::new(0.0, -0.5 * radius));
 
@@ -185,6 +198,97 @@ impl<Message> canvas::Program<Message> for Pomodoro {
             frame.with_save(|frame| {
                 frame.rotate(self.timer.time_now as f32 / 60. * TAU);
                 frame.stroke(&long_hand, thin_stroke());
+            });
+
+            if !(matches!(self.timer.state, timer::State::Stopped)) {
+                return;
+            }
+
+            let sq_point = Point::new(-frame.width() / 2., -frame.height() / 4.);
+            //let bd_point = Point::new(sq_point.x * 0.9, sq_point.y * 0.9);
+            let sq_size = Size {
+                width: frame.width(),
+                height: frame.height() / 2.,
+            };
+
+            let margin: f32 = 5.;
+
+            let inner_point =
+                Point::new(-frame.width() / 2. + margin, -frame.height() / 4. + margin);
+            let inner_size = Size {
+                width: frame.width() - margin * 2.,
+                height: frame.height() / 2. - margin * 2.,
+            };
+
+            let popup = Path::rectangle(sq_point, sq_size);
+            let inner_popup = Path::rectangle(inner_point, inner_size);
+
+            frame.fill(&popup, palette.background.base.color);
+            frame.fill(&inner_popup, palette.secondary.weak.color);
+
+            let value = menu::get_current_value(&self.timer, &self.menu_state);
+            let menu_text_value = menu::get_value_name(&self.menu_state);
+
+            let menu_text = canvas::Text {
+                content: String::from(menu_text_value),
+                position: Point::new(0., -30.),
+                horizontal_alignment: alignment::Horizontal::Center,
+                ..Default::default()
+            };
+
+            let value_text = canvas::Text {
+                content: String::from(format!("{}", value)),
+                position: Point::new(0., 5.),
+                horizontal_alignment: alignment::Horizontal::Center,
+                ..Default::default()
+            };
+
+            // arrows turn red on press
+            // events for press and release
+            // values to save the arrows' state
+
+            let left_arrow = canvas::Text {
+                content: String::from("<"),
+                position: Point::new(-100., -30.),
+                horizontal_alignment: alignment::Horizontal::Center,
+                ..Default::default()
+            };
+
+            let right_arrow = canvas::Text {
+                content: String::from(">"),
+                position: Point::new(100., -30.),
+                horizontal_alignment: alignment::Horizontal::Center,
+                ..Default::default()
+            };
+
+            let upper_arrow = canvas::Text {
+                content: String::from("^"),
+                position: Point::new(0., 0.),
+                horizontal_alignment: alignment::Horizontal::Center,
+                ..Default::default()
+            };
+
+            let lower_arrow = canvas::Text {
+                content: String::from("^"),
+                position: Point::new(0., 0.),
+                horizontal_alignment: alignment::Horizontal::Center,
+                ..Default::default()
+            };
+
+            frame.fill_text(menu_text);
+            frame.fill_text(value_text);
+            frame.fill_text(right_arrow);
+            frame.fill_text(left_arrow);
+
+            frame.with_save(|frame| {
+                frame.translate(Vector { x: 0., y: -10. });
+                frame.fill_text(lower_arrow);
+            });
+
+            frame.with_save(|frame| {
+                frame.rotate(0.5 * TAU);
+                frame.translate(Vector { x: 0., y: -40. });
+                frame.fill_text(upper_arrow);
             });
         });
 
